@@ -208,11 +208,14 @@ jobs:
           testing: true
 
       - name: Setup Swap Space
-        uses: thejerrybao/setup-swap-space@v1
-        with:
-          swap-space-path: /swapfile
-          swap-size-gb: 32
-          remove-existing-swap-files: true
+        run: |
+          sudo swapoff -a || true
+          sudo rm -f /swapfile
+          sudo fallocate -l 32G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
 
       - name: Tune Swap Aggressiveness
         run: |
