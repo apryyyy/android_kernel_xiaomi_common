@@ -19,6 +19,9 @@
 #include <linux/compat.h>
 #ifdef CONFIG_KSU_SUSFS
 #include <linux/susfs_def.h>
+#endif
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs_def.h>
 #include <linux/version.h>
 #endif
 
@@ -34,6 +37,18 @@ extern void susfs_sus_kstat_spoof_generic_fillattr(struct inode *inode, struct k
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 extern int susfs_get_non_sus_mnt_id_from_mnt(struct mount *orig_mnt);
 #endif
+
+#ifdef CONFIG_KSU_SUSFS
+extern struct static_key_true ksu_is_init_rc_hook_enabled;
+extern void ksu_handle_vfs_fstat(int fd, loff_t *kstat_size_ptr);
+extern struct static_key_true ksu_su_compat_enabled;
+extern bool __ksu_is_allow_uid_for_current(uid_t uid);
+extern int ksu_handle_stat(int *dfd, struct filename **filename, int *flags);
+#endif // #ifdef CONFIG_KSU_SUSFS
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+extern bool susfs_is_inode_sus_kstat(struct inode *inode, bool *out_is_fuse);
+extern void susfs_sus_kstat_spoof_generic_fillattr(struct inode *inode, struct kstat *stat, u32 result_mask);
+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 
 /**
  * generic_fillattr - Fill in the basic attributes from the inode struct
@@ -163,6 +178,10 @@ EXPORT_SYMBOL(vfs_getattr);
  * @stat: The result structure to fill in.
  *
  * This function is a wrapper around vfs_getattr().  The main difference is
+#ifdef CONFIG_KSU_SUSFS
+	if (static_branch_unlikely(&ksu_is_init_rc_hook_enabled))
+		ksu_handle_vfs_fstat(fd, &stat->size);
+#endif // #ifdef CONFIG_KSU_SUSFS
  * that it uses a file descriptor to determine the file location.
  *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
@@ -178,6 +197,9 @@ int vfs_fstat(int fd, struct kstat *stat)
 {
 	struct fd f;
 	int error;
+#ifdef CONFIG_KSU_SUSFS
+	struct filename *fname = NULL;
+#endif
 
 	f = fdget_raw(fd);
 	if (!f.file)
